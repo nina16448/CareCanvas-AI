@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_dialogs/widgets/buttons/icon_button.dart';
 import 'package:material_dialogs/widgets/buttons/icon_outline_button.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:carecanvasai/widgets/video.dart';
 import 'package:video_player/video_player.dart';
@@ -49,6 +50,14 @@ class _SmartVideoSwitcherState extends State<SmartVideoSwitcher> {
           final imageUrl = isdata['url'];
           debugPrint("收到圖片ㄌ");
           _showScanImageDialog(imageUrl);
+          return;
+        }
+
+        if (isdata['type'] == 'notify_image') {
+          final title = isdata['title'] as String;
+          final url = isdata['url'] as String;
+          debugPrint("要印的！！");
+          _showImageNotification(title, url);
           return;
         }
 
@@ -161,29 +170,16 @@ class _SmartVideoSwitcherState extends State<SmartVideoSwitcher> {
     );
   }
 
-  // Future<void> _sendImageToGpt(String imageUrl) async {
-  //   try {
-  //     final response = await http.post(
-  //       Uri.parse("http://127.0.0.1:8000/gpt/image-analyze"), // 換成你的後端 API 位址
-  //       headers: {"Content-Type": "application/json"},
-  //       body: jsonEncode({"image_url": imageUrl}),
-  //     );
-
-  //     if (response.statusCode == 200) {
-  //       debugPrint("✅ 圖片已成功送出給 GPT");
-  //     } else {
-  //       debugPrint("❌ 送出失敗，狀態碼：${response.statusCode}");
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ 發送過程錯誤：$e");
-  //   }
-  // }
+void _showImageNotification(String title, String imageUrl) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(title), action: SnackBarAction(label: '查看圖片', onPressed: () => launchUrlString(imageUrl)), duration: const Duration(seconds: 5)));
+  }
 
   @override
   void dispose() {
     _pingTimer.cancel();
     _channel.sink.close();
     super.dispose();
+    
   }
 
   @override

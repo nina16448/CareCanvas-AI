@@ -60,30 +60,30 @@ class _MyHomePageState extends State<MyHomePage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  CupertinoButton(
-                    color: Color.fromARGB(255, 66, 61, 57),
-                    borderRadius: BorderRadius.circular(100),
-                    child: Container(
-                      alignment: Alignment.center,
-                      width: 100,
-                      child: Text(
-                        conn ? "已連接" : "連接印表機",
-                        style: TextStyle(fontFamily: 'Montserrat', height: 1, fontWeight: FontWeight.w400, color: Color.fromARGB(255, 255, 255, 255), fontSize: 20.0),
-                      ),
-                    ),
-                    onPressed: () async {
-                      setState(() {
-                        conn = true;
-                      });
-                      const url = 'http://127.0.0.1:8000/epson/auth';
+                  // CupertinoButton(
+                  //   color: Color.fromARGB(255, 66, 61, 57),
+                  //   borderRadius: BorderRadius.circular(100),
+                  //   child: Container(
+                  //     alignment: Alignment.center,
+                  //     width: 100,
+                  //     child: Text(
+                  //       conn ? "已連接" : "連接印表機",
+                  //       style: TextStyle(fontFamily: 'Montserrat', height: 1, fontWeight: FontWeight.w400, color: Color.fromARGB(255, 255, 255, 255), fontSize: 20.0),
+                  //     ),
+                  //   ),
+                  //   onPressed: () async {
+                  //     setState(() {
+                  //       conn = true;
+                  //     });
+                  //     const url = 'http://127.0.0.1:8000/epson/auth';
 
-                      if (await canLaunchUrl(Uri.parse(url))) {
-                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                      } else {
-                        throw '無法打開網址：$url';
-                      }
-                    },
-                  ),
+                  //     if (await canLaunchUrl(Uri.parse(url))) {
+                  //       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                  //     } else {
+                  //       throw '無法打開網址：$url';
+                  //     }
+                  //   },
+                  // ),
                 ],
               ),
             ],

@@ -1,78 +1,106 @@
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:web/web.dart' as web;
-import 'package:universal_html/html.dart' as html;
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:waveform_flutter/waveform_flutter.dart';
 
-class VoiceRecorderWidget extends StatefulWidget {
-  final TextEditingController textController;
-
-  const VoiceRecorderWidget({super.key, required this.textController});
+class ChatInputField extends StatefulWidget {
+  final void Function(String) onSubmit;
+  const ChatInputField({Key? key, required this.onSubmit}) : super(key: key);
 
   @override
-  State<VoiceRecorderWidget> createState() => _VoiceRecorderWidgetState();
+  _ChatInputFieldState createState() => _ChatInputFieldState();
 }
 
-class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
+class _ChatInputFieldState extends State<ChatInputField> {
+  final Stream<Amplitude> _amplitudeStream = createSmoothedAmplitudeStream();
+
   late stt.SpeechToText _speech;
+  final TextEditingController _controller = TextEditingController();
   bool _isListening = false;
-  String _recognizedText = '按下麥克風開始講話';
-  double _confidence = 1.0;
+  double _soundLevel = 0.0;
 
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    _initSpeech();
   }
 
-  /// 這個函式用來啟動/停止語音辨識
-  void _listen() async {
-    if (!_isListening) {
-      // 初始化辨識服務，並設定錯誤及狀態回呼
-      bool available = await _speech.initialize(onStatus: (val) => debugPrint('onStatus: $val'), onError: (val) => debugPrint('onError: $val'));
-      if (available) {
-        setState(() => _isListening = true);
-        // 開始聆聽並獲取辨識結果
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _recognizedText = val.recognizedWords;
-              if (val.hasConfidenceRating && val.confidence > 0) {
-                _confidence = val.confidence;
-              }
-            });
-            widget.textController.text = val.recognizedWords;
-            debugPrint("辨識結果: ${val.recognizedWords}");
-          },
-          localeId: 'zh_TW', // 或者使用 'zh_CN' 依你的需求
-        );
-      } else {
-        setState(() => _isListening = false);
-        _speech.stop();
-      }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
+  Future<void> _initSpeech() async {
+    bool available = await _speech.initialize(onStatus: (s) => debugPrint('Speech status: $s'), onError: (e) => debugPrint('Speech error: $e'));
+    if (!available) debugPrint('Speech recognition unavailable');
+  }
+
+  void _startListening() {
+    _speech.listen(
+      onResult: (val) {
+        setState(() => _controller.text = val.recognizedWords);
+      },
+      listenFor: const Duration(seconds: 30),
+      localeId: 'zh-TW',
+      partialResults: true,
+      onSoundLevelChange: (level) {
+        // level 範圍大約 -50 (靜音) ~ 0 (最大聲)
+        setState(() => _soundLevel = (level + 50) / 50);
+      },
+    );
+    setState(() => _isListening = true);
+  }
+
+  void _stopListening() {
+    _speech.stop();
+    setState(() => _isListening = false);
+    widget.onSubmit(_controller.text);
   }
 
   @override
   void dispose() {
     _speech.stop();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(icon: Icon(_isListening ? Icons.stop_circle : Icons.mic), color: _isListening ? Colors.red : const Color.fromARGB(255, 0, 0, 0), onPressed: _listen);
+    final Random _rand = Random();
+    const int barCount = 15;
+    const double maxBarHeight = 40.0;
+    return Container(
+      decoration: BoxDecoration(color: const Color(0xFFF8F8F8), borderRadius: BorderRadius.circular(100)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          _isListening
+              ? Row(
+                children: [
+                  SizedBox(width: 88, height: maxBarHeight, child: AnimatedWaveList(stream: _amplitudeStream)),
+                  IconButton(icon: const Icon(Icons.stop_circle, color: Colors.red), onPressed: _stopListening),
+                ],
+              )
+              : IconButton(icon: const Icon(Icons.mic), onPressed: _startListening),
+        ],
+      ),
+    );
   }
+}
+
+Stream<Amplitude> createSmoothedAmplitudeStream({
+  double sensitivity = 0.3, // 音量縮放因子 (0~1)
+  double threshold = 0.05, // 底噪閾值
+}) {
+  final rnd = Random();
+  double prev = 0.0;
+  return Stream.periodic(const Duration(milliseconds: 70), (count) {
+    // 產生 0~1 的隨機值
+    final raw = rnd.nextDouble();
+    // 根據靈敏度縮放
+    final scaled = raw * sensitivity;
+    // 噪聲過濾，下限以下視為靜默
+    final filtered = scaled < threshold ? 0.0 : scaled;
+    // 平滑處理
+    final smoothed = prev * 0.6 + filtered * 0.4;
+    prev = smoothed;
+    return Amplitude(current: Random().nextDouble() * 100, max: 100);
+  });
 }
